@@ -76,18 +76,20 @@ app.post('/create-payment', async (req, res) => {
     };
 
     const base64 = base64Payload(payload);
-    const apiPath = '/pg/v1/pay';
-    const xVerify = computeXVerifyForCreate(base64, apiPath);
-
-    // PhonePe expects raw base64 as body for create-payment in many examples
-const phonepeResp = await axios.post(PHONEPE_BASE_URL + apiPath, { request: base64 }, {
-  headers: {
-    'Content-Type': 'application/json',
-    'X-VERIFY': xVerify,
-    'Accept': 'application/json'
-  },
-  timeout: 15000
-});
+const apiPath = '/v1/pay';
+const xVerify = computeXVerifyForCreate(base64, apiPath);
+const phonepeResp = await axios.post(
+  process.env.PHONEPE_BASE_URL + apiPath,
+  { request: base64 },
+  {
+    headers: {
+      'Content-Type': 'application/json',
+      'X-VERIFY': xVerify,
+      'Accept': 'application/json'
+    },
+    timeout: 15000
+  }
+);
 
     // Save order (pending)
     upsertOrder({
