@@ -216,4 +216,11 @@ app.post('/webhook', express.raw({ type: '*/*' }), (req, res) => {
 app.use('/', express.static(path.join(__dirname)));
 
 const port = process.env.PORT || 3000;
+console.log("Registered routes:");
+app._router.stack.forEach(r => {
+  if (r.route && r.route.path) {
+    console.log(r.route.stack[0].method.toUpperCase(), r.route.path);
+  }
+});
+
 app.listen(port, () => console.log(`Server running at http://localhost:${port} (PORT ${port})`));
