@@ -16,29 +16,26 @@ app.post("/create-payment", async (req, res) => {
 
     // Step 1: Fetch Auth Token
     const authResp = await axios.post(
-      "https://api.phonepe.com/apis/identity-manager/v1/oauth/token",
-      new URLSearchParams({
-        client_id: process.env.PHONEPE_CLIENT_ID,
-        client_secret: process.env.PHONEPE_CLIENT_SECRET,
-        grant_type: "client_credentials",
-        client_version: "1"
-      }).toString(),
-      { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+      "https://api.phonepe.com/apis/pg/identity/v1/token",
+      {
+        clientId: process.env.PHONEPE_CLIENT_ID,
+        clientSecret: process.env.PHONEPE_CLIENT_SECRET
+      },
+      { headers: { "Content-Type": "application/json" } }
     );
 
-    const authToken = authResp.data.access_token;
+    const authToken = authResp.data?.data?.token;
     if (!authToken) throw new Error("Auth token not received");
 
     // Step 2: Create Payment
     const payResp = await axios.post(
-      process.env.PHONEPE_BASE_URL + "/pay", // should be https://api.phonepe.com/apis/pg/checkout/v2/pay
+      "https://api.phonepe.com/apis/pg/checkout/v2/pay",
       {
+        merchantId: process.env.PHONEPE_MERCHANT_ID,
         merchantOrderId: transactionId,
-        amount: amount * 100, // convert to paise
-        redirectUrl: process.env.CALLBACK_URL,
-        paymentInstrument: {
-          type: "PAY_PAGE"
-        }
+        amount: amount * 100, // in paise
+        callbackUrl: process.env.CALLBACK_URL,
+        paymentInstrument: { type: "PAY_PAGE" }
       },
       {
         headers: {
@@ -60,29 +57,20 @@ app.get("/status/:txnId", async (req, res) => {
   try {
     const { txnId } = req.params;
 
-    // Get fresh Auth Token
     const authResp = await axios.post(
-      "https://api.phonepe.com/apis/identity-manager/v1/oauth/token",
-      new URLSearchParams({
-        client_id: process.env.PHONEPE_CLIENT_ID,
-        client_secret: process.env.PHONEPE_CLIENT_SECRET,
-        grant_type: "client_credentials",
-        client_version: "1"
-      }).toString(),
-      { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+      "https://api.phonepe.com/apis/pg/identity/v1/token",
+      {
+        clientId: process.env.PHONEPE_CLIENT_ID,
+        clientSecret: process.env.PHONEPE_CLIENT_SECRET
+      },
+      { headers: { "Content-Type": "application/json" } }
     );
 
-    const authToken = authResp.data.access_token;
+    const authToken = authResp.data?.data?.token;
 
-    // Call order status API
     const statusResp = await axios.get(
-      `${process.env.PHONEPE_BASE_URL}/status/${txnId}`,
-      {
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-          "Content-Type": "application/json"
-        }
-      }
+      `https://api.phonepe.com/apis/pg/checkout/v2/status/${txnId}`,
+      { headers: { Authorization: `Bearer ${authToken}` } }
     );
 
     res.json(statusResp.data);
