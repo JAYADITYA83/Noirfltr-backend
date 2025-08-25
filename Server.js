@@ -1,10 +1,13 @@
-// server.js
 import express from "express";
 import axios from "axios";
+import crypto from "crypto";
+import cors from "cors";
 
 const app = express();
-app.use(express.json());
 
+// ✅ Middlewares
+app.use(cors());          // allow all origins
+app.use(express.json());  // parse JSON bodies
 // --- Config / env ---
 const PHONEPE_BASE_URL = process.env.PHONEPE_BASE_URL || "https://api-preprod.phonepe.com/apis/pg-sandbox/checkout/v2";
 const CLIENT_ID = process.env.PHONEPE_CLIENT_ID;
