@@ -4,33 +4,27 @@ import axios from "axios";
 const app = express();
 app.use(express.json());
 
-// ✅ 1. Healthcheck
+// 🟢 Healthcheck
 app.get("/", (req, res) => {
-  res.send("✅ PhonePe V2 backend is running");
+  res.send("✅ PhonePe V2 backend running");
 });
 
-// ✅ 2. Create Payment
+// 🟢 Create Payment
 app.post("/create-payment", async (req, res) => {
   try {
     const { amount, transactionId } = req.body;
 
-    if (!amount || !transactionId) {
-      return res.status(400).json({ error: "amount & transactionId are required" });
-    }
-
-    const payload = {
-      merchantId: process.env.PHONEPE_MERCHANT_ID,
-      merchantOrderId: transactionId,
-      amount: amount * 100, // convert to paise
-      callbackUrl: process.env.CALLBACK_URL,
-      instrument: {
-        type: "PAY_PAGE"
-      }
-    };
-
-    const response = await axios.post(
-      "https://api.phonepe.com/apis/pg/checkout/v2/pay",
-      payload,
+    const payResp = await axios.post(
+      process.env.PHONEPE_BASE_URL + "/pay",
+      {
+        merchantId: process.env.PHONEPE_MERCHANT_ID,
+        merchantTransactionId: transactionId,
+        amount: amount * 100, // convert ₹ to paise
+        callbackUrl: process.env.CALLBACK_URL,
+        paymentInstrument: {
+          type: "PAY_PAGE"
+        }
+      },
       {
         headers: {
           "Content-Type": "application/json",
@@ -40,20 +34,20 @@ app.post("/create-payment", async (req, res) => {
       }
     );
 
-    res.json(response.data); // should include redirectUrl
+    res.json(payResp.data);
   } catch (err) {
     console.error("❌ create-payment error:", err.response?.data || err.message);
     res.status(500).json({ error: err.response?.data || err.message });
   }
 });
 
-// ✅ 3. Check Status
-app.get("/status/:orderId", async (req, res) => {
+// 🟢 Check Status
+app.get("/status/:txnId", async (req, res) => {
   try {
-    const { orderId } = req.params;
+    const { txnId } = req.params;
 
-    const response = await axios.get(
-      `https://api.phonepe.com/apis/pg/checkout/v2/status/${process.env.PHONEPE_MERCHANT_ID}/${orderId}`,
+    const statusResp = await axios.get(
+      `${process.env.PHONEPE_BASE_URL}/status/${txnId}`,
       {
         headers: {
           "Content-Type": "application/json",
@@ -63,14 +57,14 @@ app.get("/status/:orderId", async (req, res) => {
       }
     );
 
-    res.json(response.data);
+    res.json(statusResp.data);
   } catch (err) {
     console.error("❌ status error:", err.response?.data || err.message);
     res.status(500).json({ error: err.response?.data || err.message });
   }
 });
 
-// ✅ 4. Webhook (PhonePe callback)
+// 🟢 Webhook
 app.post("/phonepe-callback", (req, res) => {
   console.log("📩 Webhook received:", req.body);
   res.sendStatus(200);
@@ -79,5 +73,5 @@ app.post("/phonepe-callback", (req, res) => {
 // Start server
 const port = process.env.PORT || 3000;
 app.listen(port, () =>
-  console.log(`🚀 Server running on http://localhost:${port}`)
+  console.log(`🚀 Server running at http://localhost:${port}`)
 );
