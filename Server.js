@@ -4,92 +4,80 @@ import axios from "axios";
 const app = express();
 app.use(express.json());
 
-// 🟢 Route 1: Healthcheck
+// ✅ 1. Healthcheck
 app.get("/", (req, res) => {
-  res.send("PhonePe V2 backend is running ✅");
+  res.send("✅ PhonePe V2 backend is running");
 });
 
-// 🟢 Route 2: Create Payment
+// ✅ 2. Create Payment
 app.post("/create-payment", async (req, res) => {
   try {
     const { amount, transactionId } = req.body;
 
-    // Step 1: Fetch Auth Token
-    const authResp = await axios.post(
-      "https://api.phonepe.com/apis/pg/identity/v1/token",
-      {
-        clientId: process.env.PHONEPE_CLIENT_ID,
-        clientSecret: process.env.PHONEPE_CLIENT_SECRET
-      },
-      { headers: { "Content-Type": "application/json" } }
-    );
+    if (!amount || !transactionId) {
+      return res.status(400).json({ error: "amount & transactionId are required" });
+    }
 
-    const authToken = authResp.data?.data?.token;
-    if (!authToken) throw new Error("Auth token not received");
+    const payload = {
+      merchantId: process.env.PHONEPE_MERCHANT_ID,
+      merchantOrderId: transactionId,
+      amount: amount * 100, // convert to paise
+      callbackUrl: process.env.CALLBACK_URL,
+      instrument: {
+        type: "PAY_PAGE"
+      }
+    };
 
-    // Step 2: Create Payment (STRICT V2 fields)
-    const payResp = await axios.post(
+    const response = await axios.post(
       "https://api.phonepe.com/apis/pg/checkout/v2/pay",
-      {
-        merchantId: process.env.PHONEPE_MERCHANT_ID,
-        merchantOrderId: transactionId,
-        amount: amount * 100, // paise
-        callbackUrl: process.env.CALLBACK_URL,
-        instrument: {
-          type: "PAY_PAGE"
-        }
-      },
+      payload,
       {
         headers: {
-          Authorization: `Bearer ${authToken}`,
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          "X-CLIENT-ID": process.env.PHONEPE_CLIENT_ID,
+          "X-CLIENT-SECRET": process.env.PHONEPE_CLIENT_SECRET
         }
       }
     );
 
-    res.json(payResp.data);
+    res.json(response.data); // should include redirectUrl
   } catch (err) {
-    console.error("create-payment error:", err.response?.data || err.message);
+    console.error("❌ create-payment error:", err.response?.data || err.message);
     res.status(500).json({ error: err.response?.data || err.message });
   }
 });
 
-// 🟢 Route 3: Check Status
+// ✅ 3. Check Status
 app.get("/status/:orderId", async (req, res) => {
   try {
     const { orderId } = req.params;
 
-    const authResp = await axios.post(
-      "https://api.phonepe.com/apis/pg/identity/v1/token",
+    const response = await axios.get(
+      `https://api.phonepe.com/apis/pg/checkout/v2/status/${process.env.PHONEPE_MERCHANT_ID}/${orderId}`,
       {
-        clientId: process.env.PHONEPE_CLIENT_ID,
-        clientSecret: process.env.PHONEPE_CLIENT_SECRET
-      },
-      { headers: { "Content-Type": "application/json" } }
+        headers: {
+          "Content-Type": "application/json",
+          "X-CLIENT-ID": process.env.PHONEPE_CLIENT_ID,
+          "X-CLIENT-SECRET": process.env.PHONEPE_CLIENT_SECRET
+        }
+      }
     );
 
-    const authToken = authResp.data?.data?.token;
-
-    const statusResp = await axios.get(
-      `https://api.phonepe.com/apis/pg/checkout/v2/status/${orderId}`,
-      { headers: { Authorization: `Bearer ${authToken}` } }
-    );
-
-    res.json(statusResp.data);
+    res.json(response.data);
   } catch (err) {
-    console.error("status error:", err.response?.data || err.message);
+    console.error("❌ status error:", err.response?.data || err.message);
     res.status(500).json({ error: err.response?.data || err.message });
   }
 });
 
-// 🟢 Route 4: Webhook callback
+// ✅ 4. Webhook (PhonePe callback)
 app.post("/phonepe-callback", (req, res) => {
-  console.log("Webhook received:", req.body);
+  console.log("📩 Webhook received:", req.body);
   res.sendStatus(200);
 });
 
 // Start server
 const port = process.env.PORT || 3000;
 app.listen(port, () =>
-  console.log(`Server running at http://localhost:${port}`)
+  console.log(`🚀 Server running on http://localhost:${port}`)
 );
